@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test a connection to an OCPP central system / CSMS over WSS.
+"""Test a connection to an OCPP central system / CSMS over WS or WSS.
 
 Connects as a charge point, negotiates the OCPP subprotocol, sends a
 BootNotification and a Heartbeat, and prints the responses.
@@ -11,6 +11,8 @@ Examples:
     python test_ocpp_connection.py wss://localhost:9000 CP001 --insecure
     python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --port 8443
     python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --trailing-slash
+    python test_ocpp_connection.py ws://homeassistant.local:9000 CP001
+    python test_ocpp_connection.py csms.example.com/ocpp CP001 --no-tls
     python test_ocpp_connection.py wss://csms.example.com CP001 \
         --cert client.pem --key client.key --ca ca.pem
 """
@@ -89,10 +91,14 @@ async def call(ws, action, payload, timeout):
         return msg[2]
 
 
-def build_url(base, charge_point_id, port, trailing_slash=False):
+def build_url(base, charge_point_id, port, trailing_slash=False, tls=None):
+    if "://" not in base:
+        base = "wss://" + base
     parts = urlsplit(base)
     if parts.scheme not in ("ws", "wss") or not parts.hostname:
-        raise ValueError(f"URL must look like wss://host[:port][/path], got {base!r}")
+        raise ValueError(f"URL must look like ws[s]://host[:port][/path], got {base!r}")
+    if tls is not None:
+        parts = parts._replace(scheme="wss" if tls else "ws")
     if port is not None:
         host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
         parts = parts._replace(netloc=f"{host}:{port}")
@@ -105,7 +111,7 @@ def build_url(base, charge_point_id, port, trailing_slash=False):
 
 
 async def run(args):
-    url = build_url(args.url, args.charge_point_id, args.port, args.trailing_slash)
+    url = build_url(args.url, args.charge_point_id, args.port, args.trailing_slash, args.tls)
     headers = {}
     # No --username/--password: connect without an Authorization header.
     # --username alone: Basic auth with an empty password.
@@ -116,6 +122,8 @@ async def run(args):
         headers["Authorization"] = f"Basic {token}"
 
     ssl_ctx = build_ssl_context(args) if url.startswith("wss://") else None
+    if ssl_ctx is None and (args.cert or args.key or args.ca or args.insecure):
+        print("WARNING: --cert/--key/--ca/--insecure are ignored without TLS (ws://)")
     subprotocol = SUBPROTOCOLS[args.ocpp]
 
     print(f"Connecting to {url} (subprotocol {subprotocol})")
@@ -132,6 +140,8 @@ async def run(args):
         if ssl_ctx:
             tls = ws.transport.get_extra_info("ssl_object")
             print(f"TLS: {tls.version()} {tls.cipher()[0]}")
+        else:
+            print("TLS: none (plain ws://)")
 
         boot = await call(
             ws, "BootNotification",
@@ -166,9 +176,14 @@ def report_close(e, args):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("url", help="server base URL, e.g. wss://host:port/ocpp")
-    p.add_argument("--port", type=int, help="override the port in the URL (default: URL port, or 443/80)")
+    p.add_argument("url", help="server base URL, e.g. wss://host:port/ocpp or ws://host:port (no scheme: wss)")
+    p.add_argument("--port", type=int, help="override the port in the URL (default: URL port, or 443 for wss / 80 for ws)")
     p.add_argument("charge_point_id", help="charge point identity appended to the URL")
+    tls = p.add_mutually_exclusive_group()
+    tls.add_argument("--tls", dest="tls", action="store_true", default=None,
+                     help="connect with TLS (wss://), overriding the URL scheme")
+    tls.add_argument("--no-tls", dest="tls", action="store_false",
+                     help="connect without TLS (ws://), overriding the URL scheme")
     p.add_argument("--trailing-slash", action="store_true", help="end the URL with '/' after the charge point id")
     p.add_argument("--ocpp", choices=SUBPROTOCOLS, default="1.6", help="OCPP version (default 1.6)")
     p.add_argument("--username", help="basic auth user (default: charge point id); alone, sends an empty password")

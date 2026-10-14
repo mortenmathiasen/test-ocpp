@@ -1,12 +1,12 @@
-# OCPP WSS connection tester
+# OCPP WS/WSS connection tester
 
-`test_ocpp_connection.py` connects to an OCPP central system (CSMS) over WebSocket Secure as a charge point, then:
+`test_ocpp_connection.py` connects to an OCPP central system (CSMS) as a charge point, over WebSocket Secure (`wss://`, TLS) or plain WebSocket (`ws://`), then:
 
 1. Negotiates the OCPP subprotocol (`ocpp1.6` or `ocpp2.0.1`)
 2. Sends a `BootNotification`
 3. Sends a `Heartbeat`
 
-It prints every message sent and received, the negotiated subprotocol, and the TLS version and cipher. It exits with `0` on success and `1` on failure.
+It prints every message sent and received, the negotiated subprotocol, and the TLS version and cipher (or `TLS: none` for `ws://`). It exits with `0` on success and `1` on failure.
 
 ## Setup
 
@@ -29,10 +29,18 @@ python test_ocpp_connection.py URL CHARGE_POINT_ID [options]
 
 The charge point ID is appended to the URL, so `wss://host/ocpp` + `CP001` connects to `wss://host/ocpp/CP001`. A trailing slash on the base URL doesn't matter. If the server needs the URL to end in a slash (`wss://host/ocpp/CP001/`), add `--trailing-slash`.
 
+### TLS or no TLS
+
+The URL scheme picks the transport: `wss://` uses TLS and `ws://` doesn't. If you leave out the scheme (`csms.example.com/ocpp`), the script uses `wss://`. `--tls` and `--no-tls` override the scheme, so you can switch transports without editing the URL. The certificate options (`--cert`, `--key`, `--ca`, `--insecure`) only apply with TLS. With `ws://` they're ignored and the script prints a warning.
+
+### Port
+
 The port can be any port from 1 to 65535. Put it in the URL (`wss://host:8443/ocpp`) or pass `--port`, which overrides any port in the URL. Without either, the port is 443 for `wss://` and 80 for `ws://`.
 
 | Option | Description |
 | --- | --- |
+| `--tls` | Connect with TLS (`wss://`), overriding the URL scheme |
+| `--no-tls` | Connect without TLS (`ws://`), overriding the URL scheme |
 | `--port PORT` | Server port, overriding any port in the URL |
 | `--trailing-slash` | End the URL with `/` after the charge point ID |
 | `--ocpp {1.6,2.0.1}` | OCPP version (default `1.6`) |
@@ -59,6 +67,13 @@ Non-standard port, either in the URL or with `--port`:
 ```bash
 python test_ocpp_connection.py wss://csms.example.com:8443/ocpp CP001
 python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --port 8443
+```
+
+Without TLS, for example Home Assistant on its default port 9000 without SSL. These two commands are equivalent:
+
+```bash
+python test_ocpp_connection.py ws://homeassistant.local:9000 CP001
+python test_ocpp_connection.py wss://homeassistant.local:9000 CP001 --no-tls
 ```
 
 Server that requires a trailing slash. This connects to `wss://csms.example.com/ocpp/CP001/`:
@@ -140,8 +155,9 @@ SUCCESS
 | `TLS error: ... CERTIFICATE_VERIFY_FAILED` | Server certificate isn't trusted. Pass `--ca`, or use `--insecure` for testing only |
 | `WARNING: server did not accept the requested subprotocol` | Server doesn't support the chosen `--ocpp` version |
 | `Connect call failed ... [Errno 111]` | Nothing is listening on that host and port. Check the port |
-| `ValueError: Port out of range` / `URL must look like wss://...` | Malformed URL. Use `wss://host[:port][/path]` |
+| `ValueError: Port out of range` / `URL must look like ws[s]://...` | Malformed URL. Use `wss://host[:port][/path]` or `ws://host[:port][/path]` |
 | `server closed the connection (code 1000 ...)` right after `BootNotification` | The server accepted the connection but rejected the charge point. Usually the charge point ID isn't registered, authentication is missing, the OCPP version is wrong, or the server needs `--trailing-slash`. With Home Assistant, accept the charger first (see [Home Assistant OCPP](#home-assistant-ocpp)). Check the server logs |
+| `ConnectionResetError` or `TLS error: ... WRONG_VERSION_NUMBER` with `wss://` | The server may not use TLS on that port. Try `ws://` or `--no-tls` |
 | `TimeoutError` | Server unreachable, a firewall is blocking the connection, or no response within `--timeout` |
 | `BootNotification failed: ...` | Server returned a CALLERROR, for example for an invalid payload |
 
