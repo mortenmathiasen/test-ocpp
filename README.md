@@ -1,6 +1,6 @@
 # OCPP WS/WSS connection tester
 
-`test_ocpp_connection.py` connects to an OCPP central system (CSMS) as a charge point, over WebSocket Secure (`wss://`, TLS) or plain WebSocket (`ws://`), then:
+`test-ocpp` connects to an OCPP central system (CSMS) as a charge point, over WebSocket Secure (`wss://`, TLS) or plain WebSocket (`ws://`), then:
 
 1. Negotiates the OCPP subprotocol (`ocpp1.6` or `ocpp2.0.1`)
 2. Sends a `BootNotification`
@@ -8,30 +8,47 @@
 
 It prints every message sent and received, the negotiated subprotocol, and the TLS version and cipher (or `TLS: none` for `ws://`). It exits with `0` on success and `1` on failure.
 
-## Setup
+## Installation
 
-Requires Python 3.9+.
+Requires Python 3.9+. Install the `test-ocpp` command with [pipx](https://pipx.pypa.io/):
+
+```bash
+pipx install test-ocpp
+```
+
+Or into a virtual environment with pip:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install test-ocpp
+.venv/bin/test-ocpp --help
 ```
 
-Once `.venv` exists, `python3 test_ocpp_connection.py ...` and `./test_ocpp_connection.py ...` both work without activating it: if `websockets` is missing, the script restarts itself with `.venv/bin/python`.
+Don't `pip install` against the system Python. On Debian/Ubuntu it fails with `externally-managed-environment`.
 
-Don't run `pip install websockets` against the system Python. On Debian/Ubuntu it fails with `externally-managed-environment`.
+### From a source checkout
+
+```bash
+git clone https://github.com/mortenmathiasen/test-ocpp.git
+cd test-ocpp
+python3 -m venv .venv
+.venv/bin/pip install -e ".[test]"
+.venv/bin/pytest
+```
+
+In a checkout, `./test-ocpp ...` works like the installed `test-ocpp ...` without activating the venv: if `websockets` is missing, it restarts itself with `.venv/bin/python`. `python -m test_ocpp ...` also works wherever the package is installed.
 
 ## Usage
 
 ```
-python test_ocpp_connection.py URL CHARGE_POINT_ID [options]
+test-ocpp URL CHARGE_POINT_ID [options]
 ```
 
 The charge point ID is appended to the URL, so `wss://host/ocpp` + `CP001` connects to `wss://host/ocpp/CP001`. A trailing slash on the base URL doesn't matter. If the server needs the URL to end in a slash (`wss://host/ocpp/CP001/`), add `--trailing-slash`.
 
 ### TLS or no TLS
 
-The URL scheme picks the transport: `wss://` uses TLS and `ws://` doesn't. If you leave out the scheme (`csms.example.com/ocpp`), the script uses `wss://`. `--tls` and `--no-tls` override the scheme, so you can switch transports without editing the URL. The certificate options (`--cert`, `--key`, `--ca`, `--insecure`) only apply with TLS. With `ws://` they're ignored and the script prints a warning.
+The URL scheme picks the transport: `wss://` uses TLS and `ws://` doesn't. If you leave out the scheme (`csms.example.com/ocpp`), `test-ocpp` uses `wss://`. `--tls` and `--no-tls` override the scheme, so you can switch transports without editing the URL. The certificate options (`--cert`, `--key`, `--ca`, `--insecure`) only apply with TLS. With `ws://` they're ignored and `test-ocpp` prints a warning.
 
 ### Port
 
@@ -59,73 +76,73 @@ The port can be any port from 1 to 65535. Put it in the URL (`wss://host:8443/oc
 OCPP 1.6 connection without authentication. With neither `--username` nor `--password`, no `Authorization` header is sent:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001
+test-ocpp wss://csms.example.com/ocpp CP001
 ```
 
 Non-standard port, either in the URL or with `--port`:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com:8443/ocpp CP001
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --port 8443
+test-ocpp wss://csms.example.com:8443/ocpp CP001
+test-ocpp wss://csms.example.com/ocpp CP001 --port 8443
 ```
 
 Without TLS, for example Home Assistant on its default port 9000 without SSL. These two commands are equivalent:
 
 ```bash
-python test_ocpp_connection.py ws://homeassistant.local:9000 CP001
-python test_ocpp_connection.py wss://homeassistant.local:9000 CP001 --no-tls
+test-ocpp ws://homeassistant.local:9000 CP001
+test-ocpp wss://homeassistant.local:9000 CP001 --no-tls
 ```
 
 Server that requires a trailing slash. This connects to `wss://csms.example.com/ocpp/CP001/`:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --trailing-slash
+test-ocpp wss://csms.example.com/ocpp CP001 --trailing-slash
 ```
 
 OCPP 2.0.1:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --ocpp 2.0.1
+test-ocpp wss://csms.example.com/ocpp CP001 --ocpp 2.0.1
 ```
 
 Basic auth with a username and no password. This sends `station-a:` (an empty password):
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --username station-a
+test-ocpp wss://csms.example.com/ocpp CP001 --username station-a
 ```
 
 Basic auth (security profile 2). The username defaults to the charge point ID:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --password secret
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --username station-a --password secret
+test-ocpp wss://csms.example.com/ocpp CP001 --password secret
+test-ocpp wss://csms.example.com/ocpp CP001 --username station-a --password secret
 ```
 
 Client certificate (security profile 3), with a private CA:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 \
+test-ocpp wss://csms.example.com/ocpp CP001 \
     --cert client.pem --key client.key --ca ca.pem
 ```
 
 Server with a self-signed certificate. Pass the certificate with `--ca` to trust it, or use `--insecure` to skip verification:
 
 ```bash
-python test_ocpp_connection.py wss://localhost:9000 CP001 --ca server.pem
-python test_ocpp_connection.py wss://localhost:9000 CP001 --insecure
+test-ocpp wss://localhost:9000 CP001 --ca server.pem
+test-ocpp wss://localhost:9000 CP001 --insecure
 ```
 
 Custom vendor/model and a longer timeout:
 
 ```bash
-python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 \
+test-ocpp wss://csms.example.com/ocpp CP001 \
     --vendor Acme --model FastCharger --timeout 30
 ```
 
 Use in a shell script or CI check:
 
 ```bash
-if python test_ocpp_connection.py wss://csms.example.com/ocpp CP001 --password secret > /dev/null; then
+if test-ocpp wss://csms.example.com/ocpp CP001 --password secret > /dev/null; then
     echo "CSMS reachable"
 fi
 ```
@@ -149,7 +166,7 @@ SUCCESS
 
 | Output | Likely cause |
 | --- | --- |
-| `The 'websockets' package ... is not installed` | `.venv` is missing. Run the commands under [Setup](#setup) |
+| `The 'websockets' package ... is not installed` | Running `./test-ocpp` from a checkout without `.venv`. Follow [From a source checkout](#from-a-source-checkout) |
 | `server rejected handshake with HTTP 401` | Wrong or missing credentials (`--username` / `--password`) |
 | `server rejected handshake with HTTP 404` | Wrong URL path or unknown charge point ID |
 | `TLS error: ... CERTIFICATE_VERIFY_FAILED` | Server certificate isn't trusted. Pass `--ca`, or use `--insecure` for testing only |
@@ -161,17 +178,36 @@ SUCCESS
 | `TimeoutError` | Server unreachable, a firewall is blocking the connection, or no response within `--timeout` |
 | `BootNotification failed: ...` | Server returned a CALLERROR, for example for an invalid payload |
 
-If the server sends its own requests during the test, the script replies with a `NotImplemented` CALLERROR and keeps waiting for its own responses.
+If the server sends its own requests during the test, `test-ocpp` replies with a `NotImplemented` CALLERROR and keeps waiting for its own responses.
+
+## Python API
+
+The same check is available from Python, for example in your own test suite:
+
+```python
+import asyncio
+from test_ocpp import check_connection
+
+result = asyncio.run(check_connection(
+    "wss://csms.example.com/ocpp", "CP001",
+    ocpp="2.0.1", password="secret", timeout=10,
+))
+print(result.subprotocol, result.tls_version, result.boot_notification["status"])
+```
+
+`check_connection` takes the same options as the command line, as keyword arguments (`port`, `tls`, `trailing_slash`, `username`, `password`, `cert`, `key`, `ca`, `insecure`, `vendor`, `model`, `timeout`). It returns a `ConnectionResult` with `url`, `subprotocol`, `tls_version`, `tls_cipher`, `boot_notification` and `heartbeat`. Pass `log=print` to see the messages as the CLI prints them.
+
+On failure it raises instead of returning: `websockets.exceptions.InvalidStatus` (HTTP error during the handshake), `websockets.exceptions.ConnectionClosed`, `ssl.SSLError`, `OSError`, `asyncio.TimeoutError`, `test_ocpp.CallError` (the server answered with a CALLERROR) or `ValueError` (malformed URL).
 
 ## Home Assistant OCPP
 
 With the [Home Assistant OCPP integration](https://github.com/lbbrhzn/ocpp), the first connection from a new charge point ID is expected to fail with `server closed the connection (code 1000, no reason given)`. Home Assistant starts a discovery flow for the unknown charger and then closes the connection.
 
 1. In Home Assistant, open **Settings → Devices & services** and add the discovered **OCPP** charger.
-2. Wait for the integration to reload, then run the script again with the same charge point ID.
+2. Wait for the integration to reload, then run `test-ocpp` again with the same charge point ID.
 
 Home Assistant uses the last path segment of the URL as the charge point ID and ignores slashes, so `--trailing-slash` makes no difference.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/mortenmathiasen/test-ocpp/blob/main/LICENSE).

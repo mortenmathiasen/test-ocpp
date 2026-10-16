@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-ocpp"
+dynamic = ["version"]
+description = "Test a connection to an OCPP central system (CSMS) over WS or WSS"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Morten Mathiasen", email = "mortenemathiasen@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = ["websockets>=14"]
+keywords = ["ocpp", "ev", "charging", "csms", "websocket", "home-assistant"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Networking :: Monitoring",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+test-ocpp = "test_ocpp.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mortenmathiasen/test-ocpp"
+Issues = "https://github.com/mortenmathiasen/test-ocpp/issues"
+
+[tool.hatch.version]
+path = "src/test_ocpp/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
