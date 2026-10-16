@@ -1,6 +1,6 @@
 """Test a connection to an OCPP central system / CSMS over WS or WSS."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 from .client import (  # noqa: E402
     SUBPROTOCOLS,

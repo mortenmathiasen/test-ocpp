@@ -14,7 +14,7 @@ requires-python = ">=3.9"
 dependencies = ["websockets>=14"]
 keywords = ["ocpp", "ev", "charging", "csms", "websocket", "home-assistant"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
