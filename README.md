@@ -1,6 +1,6 @@
 # OCPP WS/WSS connection tester
 
-`test-ocpp` connects to an OCPP central system (CSMS) as a charge point, over WebSocket Secure (`wss://`, TLS) or plain WebSocket (`ws://`), then:
+`test-ocpp` connects using Open Charge Point Protocol (OCPP) to a Charging Station Management System (CSMS) as a Charging Station, either over WebSocket Secure (`wss://`, TLS) or plain WebSocket (`ws://`), then:
 
 1. Negotiates the OCPP subprotocol (`ocpp1.6` or `ocpp2.0.1`)
 2. Sends a `BootNotification`
@@ -207,6 +207,9 @@ With the [Home Assistant OCPP integration](https://github.com/lbbrhzn/ocpp), the
 2. Wait for the integration to reload, then run `test-ocpp` again with the same charge point ID.
 
 Home Assistant uses the last path segment of the URL as the charge point ID and ignores slashes, so `--trailing-slash` makes no difference.
+
+## References
+
 
 ## License
 
