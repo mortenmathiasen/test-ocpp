@@ -210,6 +210,7 @@ Home Assistant uses the last path segment of the URL as the charge point ID and 
 
 ## References
 
+- [Open Charge Alliance](https://openchargealliance.org): publisher of the OCPP specifications
 
 ## License
 
